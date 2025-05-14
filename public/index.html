@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>감라빛</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
+    .warning-banner {
+      background-color: #ff4d4f;
+      color: white;
+      text-align: center;
+      padding: 15px;
+      font-weight: bold;
+      z-index: 9999;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .login-section {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    button {
+      padding: 10px 20px;
+      background-color: #1890ff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #40a9ff;
+    }
+
+    .socket-data {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+      min-height: 100px;
+    }
+
+    .socket-data p {
+      margin: 0;
+      font-family: monospace;
+    }
+  </style>
+  <script src="https://cdn.socket.io/socket.io-2.0.3.js"></script>
+  <script type="text/javascript" src="./index.js"></script>
+</head>
+<body>
+  <div class="warning-banner">
+    ⚠️ 절대 F12를 눌러서 다른 사용자에게 소스를 공개하지 마세요. API가 유출될 경우 심각한 보안의 위협이 있을 수 있습니다.<br/>
+    ⚠️ 만약 api 키가 유출되었다면, 즉시 치지직 개발자 센터에서 api 키를 삭제하세요.<br/>
+    ⚠️ 소켓 연결이 끊어지는 경우, 페이지를 새로고침 하고, 다시 로그인 해주세요.<br/>
+  </div>
+
+  <div class="container">
+    <div class="login-section">
+      <button type="button" id="loginBtn">로그인</button>
+    </div>
+
+    <div class="socket-data" id="socketData">
+      <p>아직 소켓 연결이 되지 않았습니다.</p>
+    </div>
+  </div>
+</body>
+</html>
