@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>치지직 투표 위젯 (v7)</title>
+    <style>
+        /* --- 기본 스타일 --- */
+        body {
+            margin: 0;
+            padding: 20px; /* OBS에서 여백 조절용 */
+            font-family: 'Noto Sans KR', sans-serif; /* 한글 폰트 */
+            overflow: hidden; /* 위젯 크기를 넘어가면 숨김 */
+            background-color: rgba(0, 0, 0, 0); /* 투명 배경 */
+            color: #ffffff; /* 기본 글자색 */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh; /* OBS 전체 화면 사용 */
+        }
+
+        #poll-container {
+            width: 90%; /* 위젯 너비 조절 */
+            max-width: 600px; /* 최대 너비 설정 */
+            background-color: rgba(0, 0, 0, 0.6); /* 반투명 배경 */
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            margin-bottom: 20px; /* 설정 패널과의 간격 */
+        }
+
+        #poll-title {
+            font-size: 1.8em;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 25px;
+            color: #a8dadc; /* 제목 강조 색상 */
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            min-height: 1.8em; /* 투표 비활성화 시에도 제목 영역 높이 유지 */
+        }
+
+        .poll-bar-container {
+            position: relative;
+            width: 100%;
+            height: 40px; /* 스택형 바의 높이 */
+            background-color: #333; /* 기본 배경 색상 */
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex; /* 스택형 차트를 위해 flexbox 사용 */
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
+            box-sizing: border-box; /* 패딩이 width/height에 포함되도록 */
+
+            opacity: 0;
+            max-height: 0; /* 애니메이션을 위해 max-height 사용 */
+            transition: opacity 0.5s ease-in-out, max-height 0.5s ease-in-out;
+            margin: 0; /* 확실하게 여백 제거 */
+            padding: 0; /* 확실하게 여백 제거 */
+            visibility: hidden; /* 투표 시작 전에는 렌더링되지 않도록 */
+        }
+
+        /* 투표가 활성화되면 나타나도록 */
+        .poll-bar-container.active {
+            opacity: 1;
+            max-height: 40px; /* 원래 높이로 */
+            visibility: visible;
+        }
+
+        .poll-segment {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: bold;
+            font-size: 1em;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+            /* 초기 width는 JS에서 동적으로 할당되므로, 여기서는 transition만 정의 */
+            transition: width 0.7s cubic-bezier(0.25, 0.8, 0.25, 1), background-color 0.3s ease;
+            white-space: nowrap; /* 텍스트 줄바꿈 방지 */
+            overflow: hidden; /* 텍스트가 바를 벗어나면 숨김 */
+            box-sizing: border-box; /* 패딩이 너비에 포함되도록 */
+        }
+        /* 텍스트 위치 보정을 위한 클래스 (JS에서 동적으로 추가) */
+        .poll-segment.align-left { justify-content: flex-start; }
+        .poll-segment.align-right { justify-content: flex-end; }
+        .poll-segment.align-center { justify-content: center; }
+
+        /* --- 설정 패널 (개발용/관리용) --- */
+        #settings-panel {
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            width: 90%;
+            max-width: 600px;
+            color: #333;
+        }
+
+        #settings-panel h3 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+
+        .setting-group {
+            display: flex;
+            flex-wrap: wrap; /* 작은 화면에서 줄바꿈 */
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .setting-group .option {
+            display: flex;
+            align-items: center;
+            flex-grow: 1; /* 옵션 그룹이 가능한 공간을 차지하도록 */
+            margin-right: 10px; /* 옵션 간 간격 */
+            width: 100%; /* 옵션 그룹이 전체 너비를 차지하도록 */
+            margin-bottom: 10px;
+        }
+
+        .setting-group .option label {
+            width: 100px; /* 라벨 너비 고정 */
+            font-weight: bold;
+            flex-shrink: 0;
+            margin-right: 10px;
+        }
+
+        .setting-group .option input[type="text"],
+        .setting-group .option input[type="color"] {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+            height: 38px; /* 컬러 인풋과 높이 맞춤 */
+            box-sizing: border-box; /* 패딩이 높이에 포함되도록 */
+        }
+        .setting-group .option input[type="text"].color-hex-input,
+        .setting-group .option input[type="text"].font-color-hex-input {
+            max-width: 100px; /* HEX 값 입력 필드 너비 제한 */
+            text-transform: uppercase; /* 대문자로 자동 변환 */
+        }
+
+        .setting-group .option input[type="color"] {
+            width: 60px; /* 컬러 피커 너비 */
+            padding: 0;
+            border: none;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .control-buttons {
+            display: flex;
+            justify-content: space-around;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .control-buttons button,
+        #save-settings {
+            flex-grow: 1;
+            padding: 12px 20px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #save-settings {
+            background-color: #007bff;
+        }
+        #save-settings:hover {
+            background-color: #0056b3;
+        }
+
+        #start-poll-button {
+            background-color: #28a745; /* 녹색 */
+        }
+        #start-poll-button:hover {
+            background-color: #218838;
+        }
+
+        #stop-poll-button {
+            background-color: #ffc107; /* 노란색 */
+        }
+        #stop-poll-button:hover {
+            background-color: #e0a800;
+        }
+
+        #reset-poll-button {
+            background-color: #dc3545; /* 빨간색 */
+        }
+        #reset-poll-button:hover {
+            background-color: #c82333;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="poll-container">
+        <div id="poll-title">투표가 시작되지 않았습니다.</div>
+
+        <div class="poll-bar-container">
+            </div>
+    </div>
+
+    <div id="settings-panel">
+        <h3>투표 설정</h3>
+        <div class="setting-group">
+            <div class="option">
+                <label for="poll-main-title">투표 제목:</label>
+                <input type="text" id="poll-main-title" value="선호하는 과일은?">
+            </div>
+        </div>
+        <div class="setting-group">
+            <div class="option">
+                <label for="option1-name">옵션 1 이름:</label>
+                <input type="text" id="option1-name" value="딸기">
+            </div>
+            <div class="option">
+                <label for="option1-color-hex">바 색상:</label>
+                <input type="text" id="option1-color-hex" class="color-hex-input" value="#4CAF50" maxlength="7" pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$">
+                <input type="color" id="option1-color-picker" value="#4CAF50">
+            </div>
+            <div class="option">
+                <label for="option1-font-color-hex">글자 색상:</label>
+                <input type="text" id="option1-font-color-hex" class="font-color-hex-input" value="#4CAF50" maxlength="7" pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$">
+                <input type="color" id="option1-font-color-picker" value="#4CAF50">
+            </div>
+        </div>
+        <div class="setting-group">
+            <div class="option">
+                <label for="option2-name">옵션 2 이름:</label>
+                <input type="text" id="option2-name" value="바나나">
+            </div>
+            <div class="option">
+                <label for="option2-color-hex">바 색상:</label>
+                <input type="text" id="option2-color-hex" class="color-hex-input" value="#2196F3" maxlength="7" pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$">
+                <input type="color" id="option2-color-picker" value="#2196F3">
+            </div>
+            <div class="option">
+                <label for="option2-font-color-hex">글자 색상:</label>
+                <input type="text" id="option2-font-color-hex" class="font-color-hex-input" value="#4CAF50" maxlength="7" pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$">
+                <input type="color" id="option2-font-color-picker" value="#4CAF50">
+            </div>
+        </div>
+        <button id="save-settings">설정 저장</button>
+
+        <div class="control-buttons">
+            <button id="start-poll-button">투표 시작</button>
+            <button id="stop-poll-button">투표 일시정지</button>
+            <button id="reset-poll-button">투표 초기화</button>
+        </div>
+    </div>
+
+    <script>
+        const pollTitleElement = document.getElementById('poll-title');
+        const pollBarContainer = document.querySelector('.poll-bar-container');
+
+        // 설정 UI 요소
+        const pollMainTitleInput = document.getElementById('poll-main-title');
+        const option1NameInput = document.getElementById('option1-name');
+        const option1ColorHexInput = document.getElementById('option1-color-hex');
+        const option1ColorPicker = document.getElementById('option1-color-picker');
+        const option1FontColorHexInput = document.getElementById('option1-font-color-hex');
+        const option1FontColorPicker = document.getElementById('option1-font-color-picker');
+        const option2FontColorHexInput = document.getElementById('option2-font-color-hex');
+        const option2FontColorPicker = document.getElementById('option2-font-color-picker');
+        const option2NameInput = document.getElementById('option2-name');
+        const option2ColorHexInput = document.getElementById('option2-color-hex');
+        const option2ColorPicker = document.getElementById('option2-color-picker');
+        const saveSettingsButton = document.getElementById('save-settings');
+        const startPollButton = document.getElementById('start-poll-button');
+        const resetPollButton = document.getElementById('reset-poll-button');
+
+        // 투표 상태를 저장할 객체 (초기값)
+        let pollState = {
+            title: "선호하는 과일은?",
+            options: [
+                { id: 'option-1', name: '딸기', votes: 0, color: '#4CAF50', currentWidth: 0 },
+                { id: 'option-2', name: '바나나', votes: 0, color: '#2196F3', currentWidth: 0 }
+            ],
+            isPollingActive: false, // 투표 활성화 여부
+            votedUsers: new Map() // 중복 투표 방지를 위한 투표 참여자 맵 (실제로는 백엔드에서 관리)
+        };
+
+        // 로컬 스토리지에서 설정 불러오기 (OBS 새로고침 시 유지)
+        function loadSettings() {
+            const savedSettings = localStorage.getItem('pollSettings');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+
+                pollState.title = settings.pollTitle;
+                pollState.options[0].name = settings.option1Name;
+                pollState.options[0].color = settings.option1Color;
+                pollState.options[0].fontColor = settings.option1FontColor || '#ffffff'; // 기본 글자색
+                pollState.options[0].votes = settings.option1Votes || 0; // 득표수 초기화
+                pollState.options[1].name = settings.option2Name;
+                pollState.options[1].color = settings.option2Color;
+                pollState.options[1].fontColor = settings.option2FontColor || '#ffffff'; // 기본 글자색
+                pollState.options[1].votes = settings.option2Votes || 0; // 득표수 초기화
+                pollState.isPollingActive = settings.isPollingActive || false; // 투표 활성화 상태 로드
+
+                // currentWidth는 저장하지 않으므로 초기화 또는 다시 계산될 것
+                pollState.options[0].currentWidth = 0;
+                pollState.options[1].currentWidth = 0;
+
+                // UI 업데이트
+                pollMainTitleInput.value = settings.pollTitle;
+                option1NameInput.value = settings.option1Name;
+                option1ColorHexInput.value = settings.option1Color;
+                option1FontColorHexInput.value = settings.option1FontColor;
+                option1ColorPicker.value = settings.option1Color;
+                option1FontColorPicker.value = settings.option1FontColor;
+                option2NameInput.value = settings.option2Name;
+                option2ColorHexInput.value = settings.option2Color;
+                option2FontColorHexInput.value = settings.option2FontColor;
+                option2ColorPicker.value = settings.option2Color;
+                option2FontColorPicker.value = settings.option2FontColor;
+            }
+        }
+
+        // 로컬 스토리지에 현재 설정 저장
+        function saveSettingsToLocalStorage() {
+            localStorage.setItem('pollSettings', JSON.stringify({
+                pollTitle: pollState.title,
+                option1Name: pollState.options[0].name,
+                option1Color: pollState.options[0].color,
+                option1FontColor: pollState.options[0].fontColor || '#ffffff', // 기본 글자색
+                option1Votes: pollState.options[0].votes,
+                option2Name: pollState.options[1].name,
+                option2Color: pollState.options[1].color,
+                option2FontColor: pollState.options[1].fontColor || '#ffffff', // 기본 글자색
+                option2Votes: pollState.options[1].votes,
+                isPollingActive: pollState.isPollingActive
+            }));
+        }
+
+        // 텍스트 정렬 클래스 업데이트
+        function updateTextAlignment(segment, percent) {
+            segment.classList.remove('align-left', 'align-right', 'align-center');
+            if (percent > 0 && percent < 20) {
+                segment.classList.add('align-left'); // 왼쪽 정렬
+            } else if (percent >= 20) {
+                segment.classList.add('align-center'); // 중앙 정렬
+            }
+        }
+
+        // 투표바 업데이트 함수
+        function updatePollDisplay() {
+            const totalVotes = pollState.options[0].votes + pollState.options[1].votes;
+
+            if (pollState.isPollingActive || totalVotes > 0) {
+                pollTitleElement.textContent = pollState.title;
+                pollBarContainer.classList.add('active'); // CSS 트랜지션으로 나타나게
+
+                let targetPercent1 = (totalVotes === 0) ? 0 : (pollState.options[0].votes / totalVotes) * 100;
+                let targetPercent2 = (totalVotes === 0) ? 0 : (pollState.options[1].votes / totalVotes) * 100;
+
+                // 기존 바가 없으면 새로 생성 (초기 상태)
+                let segment1 = document.getElementById('segment-option1');
+                let segment2 = document.getElementById('segment-option2');
+
+                if (totalVotes === 0) {
+                    pollBarContainer.innerHTML = ''; // 기존 내용 비우기
+                } else if (!segment1 || !segment2) {
+                    pollBarContainer.innerHTML = ''; // 기존 내용 비우기
+
+                    segment1 = document.createElement('div');
+                    segment1.id = 'segment-option1';
+                    segment1.className = 'poll-segment';
+                    segment1.style.backgroundColor = pollState.options[0].color;
+                    // 초기에 0% width로 설정 (애니메이션 시작점)
+                    segment1.style.width = '0%';
+                    segment1.textContent = `${pollState.options[0].name} ${Math.round(targetPercent1)}%`;
+                    pollBarContainer.appendChild(segment1);
+
+                    segment2 = document.createElement('div');
+                    segment2.id = 'segment-option2';
+                    segment2.className = 'poll-segment';
+                    segment2.style.backgroundColor = pollState.options[1].color;
+                    // 초기에 0% width로 설정 (애니메이션 시작점)
+                    segment2.style.width = '0%';
+                    segment2.textContent = `${pollState.options[1].name} ${Math.round(targetPercent2)}%`;
+                    pollBarContainer.appendChild(segment2);
+
+                    // DOM에 요소가 추가된 후 다음 프레임에서 width를 설정하여 애니메이션 트리거
+                    requestAnimationFrame(() => {
+                        segment1.style.width = `${targetPercent1}%`;
+                        segment2.style.width = `${targetPercent2}%`;
+                        pollState.options[0].currentWidth = targetPercent1;
+                        pollState.options[1].currentWidth = targetPercent2;
+                        updateTextAlignment(segment1, targetPercent1);
+                        updateTextAlignment(segment2, targetPercent2);
+                    });
+
+                } else {
+                    // 기존 바가 있으면 현재 width와 비교하여 애니메이션 방향 결정
+                    const prevPercent1 = pollState.options[0].currentWidth;
+                    const prevPercent2 = pollState.options[1].currentWidth;
+
+                    // 텍스트 업데이트
+                    segment1.textContent = `${pollState.options[0].name} ${Math.round(targetPercent1)}%`;
+                    segment2.textContent = `${pollState.options[1].name} ${Math.round(targetPercent2)}%`;
+
+                    // 0%일 때는 텍스트도 숨김
+                    if (targetPercent1 === 0 && totalVotes > 0) segment1.textContent = '';
+                    if (targetPercent2 === 0 && totalVotes > 0) segment2.textContent = '';
+
+                    // requestAnimationFrame을 사용하여 애니메이션 실행
+                    requestAnimationFrame(() => {
+                        segment1.style.width = `${targetPercent1}%`;
+                        segment2.style.width = `${targetPercent2}%`;
+
+                        // 텍스트 정렬 업데이트
+                        updateTextAlignment(segment1, targetPercent1);
+                        updateTextAlignment(segment2, targetPercent2);
+                    });
+                }
+
+                // 현재 width 값 저장
+                pollState.options[0].currentWidth = targetPercent1;
+                pollState.options[1].currentWidth = targetPercent2;
+
+            } else {
+                // 투표 비활성화 또는 데이터 없을 때 투표바 숨김
+                pollTitleElement.textContent = "투표가 시작되지 않았습니다.";
+                pollBarContainer.classList.remove('active'); // CSS 트랜지션으로 사라지게
+                pollBarContainer.innerHTML = ''; // 내용 비우기
+                // currentWidth 초기화 (숨김 상태이므로)
+                pollState.options[0].currentWidth = 0;
+                pollState.options[1].currentWidth = 0;
+            }
+        }
+
+        // 설정 저장 버튼 이벤트 리스너
+        saveSettingsButton.addEventListener('click', () => {
+            pollState.title = pollMainTitleInput.value;
+            pollState.options[0].name = option1NameInput.value;
+            pollState.options[0].color = option1ColorHexInput.value;
+            pollState.options[0].fontColor = option1FontColorHexInput.value || '#ffffff'; // 기본 글자색
+            pollState.options[1].name = option2NameInput.value;
+            pollState.options[1].color = option2ColorHexInput.value;
+            pollState.options[1].fontColor = option2FontColorHexInput.value || '#ffffff'; // 기본 글자색
+
+            saveSettingsToLocalStorage();
+        });
+
+        // 투표 시작 버튼 이벤트 리스너
+        startPollButton.addEventListener('click', () => {
+            if (pollState.isPollingActive) {
+                alert('투표가 이미 진행 중입니다!');
+                return;
+            }
+            pollState.isPollingActive = true;
+            saveSettingsToLocalStorage();
+            updatePollDisplay(); // 화면 업데이트 (제목 변경 및 바 표시)
+            alert('투표가 시작되었습니다!');
+        });
+
+        // 투표 일시정지 버튼 이벤트 리스너
+        document.getElementById('stop-poll-button').addEventListener('click', () => {
+            if (!pollState.isPollingActive) {
+                alert('투표가 진행 중이 아닙니다!');
+                return;
+            }
+            pollState.isPollingActive = false;
+            saveSettingsToLocalStorage();
+            updatePollDisplay(); // 화면 업데이트 (제목 변경 및 바 숨김)
+            alert('투표가 일시정지되었습니다.');
+        });
+
+        // 투표 초기화 버튼 이벤트 리스너
+        resetPollButton.addEventListener('click', () => {
+            if (!confirm('정말로 투표를 초기화하시겠습니까? 모든 득표수가 0이 되고, 투표는 비활성화됩니다.')) {
+                return; // 사용자가 취소하면 아무것도 하지 않음
+            }
+            pollState.options[0].votes = 0;
+            pollState.options[1].votes = 0;
+            pollState.votedUsers.clear(); // 투표한 사용자 목록 초기화 (백엔드에서도 필요)
+            pollState.isPollingActive = false; // 투표 비활성화
+
+            saveSettingsToLocalStorage();
+            updatePollDisplay(); // 화면 업데이트 (제목 변경 및 바 숨김)
+            alert('투표가 초기화되었습니다.');
+        });
+
+
+        // 컬러 피커와 HEX 입력 필드 동기화
+        option1ColorPicker.addEventListener('input', (event) => {
+            option1ColorHexInput.value = event.target.value.toUpperCase();
+        });
+        option1ColorHexInput.addEventListener('input', (event) => {
+            if (/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(event.target.value)) {
+                option1ColorPicker.value = event.target.value;
+            }
+        });
+        option2ColorPicker.addEventListener('input', (event) => {
+            option2ColorHexInput.value = event.target.value.toUpperCase();
+        });
+        option2ColorHexInput.addEventListener('input', (event) => {
+            if (/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(event.target.value)) {
+                option2ColorPicker.value = event.target.value;
+            }
+        });
+
+        // --- 초기 로드 시 실행 ---
+        loadSettings(); // 저장된 설정 로드
+        updatePollDisplay(); // 초기 화면 렌더링
+
+        // --- 임시 투표 함수 (백엔드 없이 브라우저에서 테스트용) ---
+        // 이 함수들은 실제 배포 시에는 백엔드 로직으로 대체되어야 합니다.
+        // 투표가 시작되지 않았으면 투표를 받지 않습니다.
+        function castVote(optionIndex, userId) {
+            if (!pollState.isPollingActive) {
+                console.log('투표가 시작되지 않아 투표를 받을 수 없습니다.');
+                return false;
+            }
+            if (pollState.votedUsers.has(userId)) {
+                console.log(`${userId}님은 이미 투표했습니다.`);
+                return false;
+            }
+
+            pollState.options[optionIndex].votes++;
+            pollState.votedUsers.set(userId, true);
+            updatePollDisplay();
+            console.log(`${userId}님이 ${pollState.options[optionIndex].name}에 투표했습니다.`);
+            return true;
+        }
+
+        // 예시: 1초마다 투표 시뮬레이션 (개발용)
+        let simulatedUserCount = 0;
+        let pollInterval; // interval 관리를 위한 변수
+
+        startPollButton.addEventListener('click', () => {
+            if (!pollInterval) {
+                simulatedUserCount = 0; // 시뮬레이션 시작 시 사용자 카운트 초기화
+                pollInterval = setInterval(() => {
+                    const randomOption = Math.random() < 0.5 ? 0 : 1;
+                    const userId = `user_${simulatedUserCount++}`;
+                    castVote(randomOption, userId);
+                }, 1000);
+            }
+        });
+
+        resetPollButton.addEventListener('click', () => {
+            if (pollInterval) {
+                clearInterval(pollInterval); // 시뮬레이션 정지
+                pollInterval = null;
+            }
+        });
+    </script>
+</body>
+</html>

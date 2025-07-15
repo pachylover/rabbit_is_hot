@@ -6,6 +6,12 @@ const path = require('path');
 const app = express();
 const port = 3000;
 
+//.env 파일에서 환경 변수 로드
+require('dotenv').config();
+// 환경 변수에서 클라이언트 ID와 시크릿 가져오기
+const CLIENT_ID = process.env.CLIENT_ID || 'YOUR-CLIENT_ID';  // 여기에 실제 clientId 넣기
+const CLIENT_SECRET = process.env.CLIENT_SECRET || 'YOUR_SECRET';  // 여기에 실제 clientSecret 넣기
+
 // CORS 설정
 app.use(cors());
 
@@ -26,8 +32,8 @@ app.post('/get-access-token', async (req, res) => {
   const url = 'https://chzzk.naver.com/auth/v1/token';
   const params = {
     grantType: 'authorization_code',
-    clientId: 'YOUR-CLIENT_ID',  // 여기에 실제 clientId 넣기
-    clientSecret: 'YOUR_SECRET',  // 여기에 실제 clientSecret 넣기
+    clientId: CLIENT_ID,  // 여기에 실제 clientId 넣기
+    clientSecret: CLIENT_SECRET,  // 여기에 실제 clientSecret 넣기
     code: code,
     state: state,
   };
@@ -59,6 +65,18 @@ app.get('/', (req, res) => {
   res.sendFile(__dirname + '/public/index.html');
 });
 
+// GET, 투표위젯페이지 요청 처리
+app.get('/poll', (req, res) => {
+  //public/index.html 파일을 클라이언트에게 전송
+  res.sendFile(__dirname + '/public/poll-widget.html');
+});
+
+// GET, 테스트 요청 처리
+app.get('/test', (req, res) => {
+  //public/index.html 파일을 클라이언트에게 전송
+  res.sendFile(__dirname + '/public/test.html');
+});
+
 app.post('/create-socket-session', async (req, res) => {
   const { accessToken } = req.body;
 
@@ -76,7 +94,7 @@ app.post('/create-socket-session', async (req, res) => {
         },
       }
     );
-    
+
     console.log('소켓 세션 생성 성공:', response.data);
 
     res.json(response.data);

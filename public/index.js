@@ -1,4 +1,4 @@
-const chzzkClientId = 'YOUR-CLIENT_ID'; // 여기에 실제 clientId 넣기
+const chzzkClientId = 'ID'; // 여기에 실제 clientId 넣기
 const redirectUrl = 'http://localhost:3000'; // 동일하게 맞춰주기기
 
 document.addEventListener('DOMContentLoaded', function () {
