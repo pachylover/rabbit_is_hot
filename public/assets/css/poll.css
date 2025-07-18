@@ -36,7 +36,7 @@ button:hover {
 #poll-container {
     width: 90%; /* 위젯 너비 조절 */
     max-width: 600px; /* 최대 너비 설정 */
-    background-color: transparent; /* 반투명 배경 */
+    background-color: rgba(0, 0, 0, 0.8); /* 반투명 배경 */
     border-radius: 15px;
     padding: 20px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
@@ -48,7 +48,7 @@ button:hover {
     font-weight: bold;
     text-align: center;
     margin-bottom: 25px;
-    color: #a8dadc; /* 제목 강조 색상 */
+    color: #00FFA3; /* 제목 강조 색상 */
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
     min-height: 1.8em; /* 투표 비활성화 시에도 제목 영역 높이 유지 */
 }
@@ -212,9 +212,9 @@ button:hover {
     background-color: #e0a800;
 }
 
-#reset-poll-button {
+#reset-poll-button, #reset-setting-button {
     background-color: #dc3545; /* 빨간색 */
 }
-#reset-poll-button:hover {
+#reset-poll-button:hover, #reset-setting-button:hover {
     background-color: #c82333;
 }

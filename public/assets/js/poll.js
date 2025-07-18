@@ -2,16 +2,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 현재 세션 스토리지에 엑세스 토큰이 있는 경우
     if (localStorage.getItem('accessToken') && localStorage.getItem('accessToken') !== 'undefined') {
         //소켓 세션 생성
-        try {
-            createSocketSession(pollChatEvt);
-            document.querySelector('#loginBtn').style.display = 'none'; // 버튼 숨김
-            setEvt(); // 설정 이벤트 리스너 설정
-            loadSettings(); // 저장된 설정 로드
-            updatePollDisplay(); // 초기 화면 렌더링
-        } catch (error) {
-            alert('채팅과 연결 중 오류가 발생했습니다. 다시 로그인 후 시도해주세요.');
-            console.error('소켓 세션 생성 중 오류 발생:', error);
-        }
+        createSocketSession(pollChatEvt);
+        document.querySelector('#loginBtn').style.display = 'none'; // 버튼 숨김
+        setEvt(); // 설정 이벤트 리스너 설정
+        loadSettings(); // 저장된 설정 로드
+        updatePollDisplay(); // 초기 화면 렌더링
+    } else {
+        alert('로그인 후 투표 기능을 사용할 수 있습니다.\n로그인 버튼을 클릭하여 로그인해주세요.');
     }
 });
 
@@ -40,27 +37,28 @@ const option2ColorPicker = document.getElementById('option2-color-picker');
 const saveSettingsButton = document.getElementById('save-settings');
 const startPollButton = document.getElementById('start-poll-button');
 const resetPollButton = document.getElementById('reset-poll-button');
+const resetSettingButton = document.getElementById('reset-setting-button');
 
 // 투표 상태를 저장할 객체 (초기값)
 let pollState = {
     title: '선호하는 과일은?',
-    mainTitleColor: '#4CAF50', // 투표 제목 색상
+    mainTitleColor: '#00FFA3', // 투표 제목 색상
     backgroundColor: '#000', // 투표창 배경색
     backgroundOpacity: 0.8, // 투표창 배경 투명도
     options: [
         {
             id: 'option-1',
             name: '딸기',
-            color: '#4CAF50',
-            fontColor: '#ffffff', // 기본 글자색
+            color: '#000000',
+            fontColor: '#00FFA3', // 기본 글자색
             currentWidth: 0,
             votedUsers: [], // 중복 투표 방지를 위한 투표 참여자 리스트
         },
         {
             id: 'option-2',
             name: '바나나',
-            color: '#2196F3',
-            fontColor: '#ffffff', // 기본 글자색
+            color: '#00FFA3',
+            fontColor: '#000000', // 기본 글자색
             currentWidth: 0,
             votedUsers: [], // 중복 투표 방지를 위한 투표 참여자 리스
         },
@@ -383,6 +381,14 @@ function setEvt() {
         alert('투표가 시작되었습니다!');
     });
 
+    // 투표/설정 초기화 버튼 이벤트 리스너
+    resetSettingButton.addEventListener('click', () => {
+        if (confirm('정말로 투표와 설정을 초기화할까요?\n모든 설정이 초기화되고, 투표는 비활성화됩니다.')) {
+            localStorage.removeItem('pollSettings'); // 로컬 스토리지 초기화
+            alert('투표와 설정이 초기화되었습니다. 페이지가 새로고침됩니다.');
+            location.reload(); // 페이지 새로고침
+        }
+    });
     // 투표 일시정지 버튼 이벤트 리스너
     document.getElementById('stop-poll-button').addEventListener('click', () => {
         if (!pollState.isPollingActive) {
