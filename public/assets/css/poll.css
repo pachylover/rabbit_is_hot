@@ -2,14 +2,35 @@ body {
     margin: 0;
     padding: 20px; /* OBS에서 여백 조절용 */
     font-family: 'Noto Sans KR', sans-serif; /* 한글 폰트 */
-    overflow: hidden; /* 위젯 크기를 넘어가면 숨김 */
     background-color: rgba(0, 0, 0, 0); /* 투명 배경 */
     color: #ffffff; /* 기본 글자색 */
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    height: 100vh; /* OBS 전체 화면 사용 */
+}
+
+button {
+    padding: 10px 20px;
+    background-color: #1890ff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+}
+a {
+    padding: 10px 20px;
+    background-color: #ff4d4f;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #40a9ff;
 }
 
 #poll-container {
@@ -73,6 +94,7 @@ body {
     white-space: nowrap; /* 텍스트 줄바꿈 방지 */
     overflow: hidden; /* 텍스트가 바를 벗어나면 숨김 */
     box-sizing: border-box; /* 패딩이 너비에 포함되도록 */
+    opacity: 1;
 }
 /* 텍스트 위치 보정을 위한 클래스 (JS에서 동적으로 추가) */
 .poll-segment.align-left {

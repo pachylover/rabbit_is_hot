@@ -1,4 +1,4 @@
-const chzzkClientId = 'ID'; // 여기에 실제 clientId 넣기
+const chzzkClientId = ''; // 여기에 실제 clientId 넣기
 const redirectUrl = 'http://localhost:3000'; // 동일하게 맞춰주기기
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -13,10 +13,16 @@ document.addEventListener('DOMContentLoaded', function () {
     getAccessToken();
   }
 
-  // 현재 세션 스토리지에 엑세스 토큰이 있는 경우
-  if (sessionStorage.getItem('accessToken') && sessionStorage.getItem('accessToken') !== 'undefined') {
-    //소켓 세션 생성
-    createSocketSession();
+  if (document.querySelector('#connectSocketBtn')) {
+    document.querySelector('#connectSocketBtn').addEventListener('click', function () {
+      // 현재 세션 스토리지에 엑세스 토큰이 있는 경우
+      if (localStorage.getItem('accessToken') && localStorage.getItem('accessToken') !== 'undefined') {
+        //소켓 세션 생성
+        createSocketSession();
+      } else {
+        alert('로그인이 필요합니다.');
+      }
+    });
   }
 });
 
@@ -54,11 +60,8 @@ function getAccessToken() {
     })
       .then((response) => response.json())
       .then((data) => {
-        alert('엑세스 토큰 발급 완료');
-        console.log('data: ', data);
-        alert('data: ' + JSON.stringify(data));
         // 세션스토리지에 엑세스 토큰 저장
-        sessionStorage.setItem('accessToken', data.content.accessToken);
+        localStorage.setItem('accessToken', data.content.accessToken);
 
         location.href = 'http://localhost:3000';
       })
@@ -67,8 +70,8 @@ function getAccessToken() {
 }
 
 // 소켓 세션 생성
-function createSocketSession() {
-  const accessToken = sessionStorage.getItem('accessToken');
+function createSocketSession(chakCallback, donationCallback) {
+  const accessToken = localStorage.getItem('accessToken');
 
   fetch('/create-socket-session', {
     method: 'POST',
@@ -79,17 +82,19 @@ function createSocketSession() {
   })
     .then((response) => response.json())
     .then((data) => {
-      alert('소켓 세션 생성 완료');
-      alert('data: ' + JSON.stringify(data));
-      connectSocketIO(data.content.url);
+      connectSocketIO(data.content.url, chakCallback, donationCallback);
     })
-    .catch((error) => console.error('Error:', error));
+    .catch((error) => {
+      //에러 발생시 throw
+      console.error('Error:', error);
+      throw new Error('소켓 세션 생성 중 오류 발생');
+    });
 }
 
 // 채팅, 도네이션 구독
 function subscribeSocketIO() {
-  const sessionKey = sessionStorage.getItem('sessionKey');
-  const accessToken = sessionStorage.getItem('accessToken');
+  const sessionKey = localStorage.getItem('sessionKey');
+  const accessToken = localStorage.getItem('accessToken');
 
   fetch('/subscribe-chat', {
     method: 'POST',
@@ -100,8 +105,6 @@ function subscribeSocketIO() {
   })
     .then((response) => response.json())
     .then((data) => {
-      alert('구독 완료');
-      alert('data: ' + JSON.stringify(data));
     })
     .catch((error) => console.error('Error:', error));
 
@@ -114,50 +117,53 @@ function subscribeSocketIO() {
   })
     .then((response) => response.json())
     .then((data) => {
-      alert('구독 완료');
-      alert('data: ' + JSON.stringify(data));
     })
     .catch((error) => console.error('Error:', error));
 
 }
 
-function connectSocketIO(url){
+function connectSocketIO(url, chatCallback, donationCallback) {
   const socketDataWrap = document.querySelector('#socketData');
 
   const socket = io(url, {
     transports: ['websocket'],
     auth: {
-      accessToken: sessionStorage.getItem('accessToken'),
+      accessToken: localStorage.getItem('accessToken'),
     },
   });
 
   socket.on('connect', () => {
-    socketDataWrap.innerHTML = 'Socket connected';
+    if (socketDataWrap) socketDataWrap.innerHTML = 'Socket connected';
   });
 
   socket.on('disconnect', () => {
-    socketDataWrap.innerHTML = 'Socket disconnected';
+    if (socketDataWrap) socketDataWrap.innerHTML = 'Socket disconnected';
   });
 
   socket.on('connect_error', (data) => {
-    socketDataWrap.innerHTML = 'Socket connection error: ' + data;
+    if (socketDataWrap) socketDataWrap.innerHTML = 'Socket connection error: ' + data;
   });
 
   socket.on('SYSTEM', (data) => {
     data = JSON.parse(data);
     if (data && data.type === 'connected') {
       //세션에 세션키 저장
-      sessionStorage.setItem('sessionKey', data.data.sessionKey);
+      localStorage.setItem('sessionKey', data.data.sessionKey);
 
       subscribeSocketIO();
     }
   });
 
-  socket.on('CHAT', (data) => {
-    socketDataWrap.innerHTML = 'CHAT: ' + data;
-  });
-
-  socket.on('DONATION', (data) => {
-    socketDataWrap.innerHTML = 'MESSAGE: ' + data;
-  });
+  if (chatCallback) {
+    socket.on('CHAT', chatCallback);
+  }
+  if (donationCallback) {
+    socket.on('DONATION', donationCallback);
+  }
+  // socket.on('CHAT', (data) => {
+  //   socketDataWrap.innerHTML = 'MESSAGE: ' + data;
+  // });
+  // socket.on('DONATION', (data) => {
+  //   socketDataWrap.innerHTML = 'MESSAGE: ' + data;
+  // });
 }

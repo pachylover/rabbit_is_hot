@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>치지직 투표 위젯 (v7)</title>
     <link rel="stylesheet" href="/assets/css/poll.css">
+    <script src="https://cdn.socket.io/socket.io-2.0.3.js"></script>
+    <script src="./index.js" defer></script>
     <script src="/assets/js/poll.js" defer></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
 </head>
@@ -23,9 +25,21 @@
                 <input type="text" id="poll-main-title" value="선호하는 과일은?">
             </div>
             <div class="option">
-                <label for="poll-main-title-color">글자 색상:</label>
+                <label for="poll-main-title-color-hex">글자 색상:</label>
                 <input type="text" id="poll-main-title-color-hex" class="color-hex-input" value="#4CAF50" maxlength="7" pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$">
                 <input type="color" id="poll-main-title-color-picker" value="#4CAF50">
+            </div>
+        </div>
+        <div class="setting-group">
+            <div class="option">
+                <label for="poll-background-hex">투표 배경:</label>
+                <input type="text" id="poll-background-hex" class="color-hex-input" value="#000000" maxlength="7" pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$">
+                <input type="color" id="poll-background-picker" value="#000000">
+            </div>
+            <div class="option">
+                <label for="poll-background-opacity">투명도:</label>
+                <input type="range" id="poll-background-opacity" min="0" max="1" step="0.01" value="0.5">
+                <span id="poll-background-opacity-value">0.5</span>
             </div>
         </div>
         <div class="setting-group">
@@ -60,6 +74,7 @@
                 <input type="color" id="option2-font-color-picker" value="#4CAF50">
             </div>
         </div>
+        <button type="button" id="loginBtn">로그인</button>
         <button id="save-settings">설정 저장</button>
 
         <div class="control-buttons">
