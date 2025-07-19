@@ -133,7 +133,8 @@ function connectSocketIO(url, chatCallback, donationCallback) {
   });
 
   socket.on('connect', () => {
-    if (socketDataWrap) socketDataWrap.innerHTML = 'Socket connected';
+    // 소켓 연결 성공시 accessToken을 서버에 전달
+    socket.emit
   });
 
   socket.on('disconnect', () => {
@@ -166,4 +167,70 @@ function connectSocketIO(url, chatCallback, donationCallback) {
   // socket.on('DONATION', (data) => {
   //   socketDataWrap.innerHTML = 'MESSAGE: ' + data;
   // });
+}
+
+function connectSocket(chatCallback) {
+  const ws = new WebSocket('wss://kr-ss5.chat.naver.com/chat');
+
+  ws.onopen = () => {
+      ws.send(JSON.stringify({
+          bdy: {
+              // accTkn: "PKgjBaa/U1GMcLxdMie9buqH7k/jIxDqxPahf5eqTh6M//g7JK5z4fq93aU23gMo",
+              accTkn: 'pQhy7I5CDifuWZYfWBvqt8Ipdb2AcnC/WPLkca/nZI22C9ol8IpwnW5chlQXHvXZ',
+              auth: "READ",
+              devType: 2001,
+              uid: null
+          },
+          cmd: 100,
+          tid: 1,
+          cid: "N1uPVG",
+          svcid: "game",
+          ver: "2"
+      }));
+
+      // 21초마다 ping 메시지 전송
+      setInterval(() => {
+          ws.send(JSON.stringify({
+              cmd: 0,
+              ver: "2"
+          }));
+      }, 21000);
+/** 채팅 메시지 예시
+ * {
+    "svcid": "game",
+    "ver": "1",
+    "bdy": [
+      {
+        "svcid": "game",
+        "cid": "N1uPTq",
+        "mbrCnt": 2,
+        "uid": "49e70b53cd363c3caf70925cc4c91d2b",
+        "profile": "{\"userIdHash\":\"49e70b53cd363c3caf70925cc4c91d2b\",\"nickname\":\"끼리코 너무좋아\",\"profileImageUrl\":\"\",\"userRoleCode\":\"streamer\",\"badge\":{\"imageUrl\":\"https://ssl.pstatic.net/static/nng/glive/icon/streamer.png\"},\"title\":{\"name\":\"스트리머\",\"color\":\"#D9B04F\"},\"verifiedMark\":false,\"activityBadges\":[],\"streamingProperty\":{\"nicknameColor\":{\"colorCode\":\"CC000\"},\"activatedAchievementBadgeIds\":[]},\"viewerBadges\":[]}",
+        "msg": "1221",
+        "msgTypeCode": 1,
+        "msgStatusType": "NORMAL",
+        "extras": "{\"chatType\":\"STREAMING\",\"osType\":\"PC\",\"extraToken\":\"0OMnlLBzJCvHsT3rW9/LQQppkvIbnaKnng1vwAkxklsbeCDQz8QLxJhs4bGnC5UM/gLNfdYTSF5L1Z7d1NJtbw==\",\"streamingChannelId\":\"49e70b53cd363c3caf70925cc4c91d2b\",\"emojis\":{}}",
+        "ctime": 1752913695737,
+        "utime": 1752913695737,
+        "msgTid": null,
+        "msgTime": 1752913695737
+      }
+    ],
+    "cmd": 93101,
+    "tid": "11",
+    "cid": "N1uPTq"
+  }
+*/
+      if (chatCallback) {
+          ws.onmessage = (event) => {
+              const data = JSON.parse(event.data);
+              //cmd가 10000이 아니면 메시지 처리
+              if (data.cmd !== 10000 && data.bdy && data.bdy.length > 0) {
+                  // 채팅 메시지 처리
+                  chatCallback(data.bdy[0]);
+              }
+          };
+      }
+  };
+
 }

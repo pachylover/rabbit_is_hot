@@ -1,173 +1,145 @@
-const express = require('express');
-const axios = require('axios');
-const cors = require('cors');
-const path = require('path');
+import express from "express";
+import axios from "axios";
+import cors from "cors";
+import path, { dirname } from "path";
+import dotenv from "dotenv";
+import { fileURLToPath } from "url";
+import { ChzzkClient, ChzzkChat } from "chzzk";
+import http from "http";
+import WebSocket from "ws";
+import fs from "fs";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const app = express();
 const port = 3000;
+const channelId = '8c10d0b3eca53a19d8396e276bed1e17'; // 채널 ID 설정
 
-//.env 파일에서 환경 변수 로드
-require('dotenv').config();
-// 환경 변수에서 클라이언트 ID와 시크릿 가져오기
-const CLIENT_ID = process.env.CLIENT_ID || 'YOUR-CLIENT_ID';  // 여기에 실제 clientId 넣기
-const CLIENT_SECRET = process.env.CLIENT_SECRET || 'YOUR_SECRET';  // 여기에 실제 clientSecret 넣기
+// Express 서버 생성
+const server = http.createServer(app);
+// WebSocket 서버 생성
+const wss = new WebSocket.Server({ server });
 
-// CORS 설정
+dotenv.config();
 app.use(cors());
-
-// JSON body 파싱
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
-
-// 엑세스 토큰 요청 라우터
-app.post('/get-access-token', async (req, res) => {
-  const { code, state } = req.body;
-
-  // 파라미터가 없는 경우 처리
-  if (!code || !state) {
-    return res.status(400).send('Missing code or state');
-  }
-
-  // 요청 URL과 데이터 설정
-  const url = 'https://chzzk.naver.com/auth/v1/token';
-  const params = {
-    grantType: 'authorization_code',
-    clientId: CLIENT_ID,  // 여기에 실제 clientId 넣기
-    clientSecret: CLIENT_SECRET,  // 여기에 실제 clientSecret 넣기
-    code: code,
-    state: state,
-  };
-
-  try {
-    // API 요청
-    const response = await axios.post(url, params, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    // 성공적으로 응답받으면 토큰을 리턴
-    res.json(response.data);
-  } catch (error) {
-    console.error('Error fetching access token:', error);
-    res.status(500).send('Error fetching access token');
-  }
-});
+app.use(express.static(path.join(__dirname, "public")));
 
 // 서버 시작
-app.listen(port, () => {
+server.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}`);
 });
 
 // GET, 루트 요청 처리
-app.get('/', (req, res) => {
+app.get("/", (req, res) => {
   //public/index.html 파일을 클라이언트에게 전송
-  res.sendFile(__dirname + '/public/index.html');
+  res.sendFile(__dirname + "/public/index.html");
 });
 
 // GET, 투표위젯페이지 요청 처리
-app.get('/poll', (req, res) => {
+app.get("/poll", (req, res) => {
   //public/index.html 파일을 클라이언트에게 전송
-  res.sendFile(__dirname + '/public/poll-widget.html');
+  res.sendFile(__dirname + "/public/poll-widget.html");
 });
 
-// GET, 테스트 요청 처리
-app.get('/test', (req, res) => {
-  //public/index.html 파일을 클라이언트에게 전송
-  res.sendFile(__dirname + '/public/test.html');
+// POST, 설정 저장 라우트
+app.post("/settings", (req, res) => {
+    const settings = req.body; // 클라이언트로부터 전송된 설정 데이터
+    console.log("Settings received:", settings);
+
+    // settings.json 파일로 설정 저장
+    fs.writeFile(path.join(__dirname, "settings.json"), JSON.stringify(settings, null, 2), (err) => {
+        if (err) {
+            // 파일 저장 중 오류 발생 시
+            console.error("Error saving settings:", err);
+            return res.status(500).send("Error saving settings"); // 클라이언트에 오류 응답 전송
+        }
+        console.log("Settings saved successfully");
+
+        // 파일 저장이 성공한 후에 소켓을 통해 연결된 모든 클라이언트에게 화면 변경 알림
+        // (예: 설정이 변경되었으니 화면을 업데이트하라는 신호)
+        wss.clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+                // 'settings' 타입의 메시지와 함께 변경된 설정 데이터를 전송
+                client.send(JSON.stringify({ type: "settings", settings }));
+            }
+        });
+
+        // 클라이언트에 성공 응답 전송
+        res.status(200).send("Settings saved successfully");
+    });
 });
 
-app.post('/create-socket-session', async (req, res) => {
-  const { accessToken } = req.body;
+//POST, 설정 초기화
+app.post("/reset-settings", (req, res) => {
+    // default-settings.json 파일을 읽어 settings.json으로 저장
+    const defaultSettingsPath = path.join(__dirname, "default-settings.json");
+    fs.readFile(defaultSettingsPath, "utf8", (err, data) => {
+        if (err) {
+            console.error("Error reading default settings:", err);
+            return res.status(500).send("Error resetting settings");
+        }
 
-  if (!accessToken) {
-    return res.status(400).json({ error: 'accessToken is required' });
-  }
+        fs.writeFile(path.join(__dirname, "settings.json"), data, (writeErr) => {
+            if (writeErr) {
+                console.error("Error writing settings:", writeErr);
+                return res.status(500).send("Error resetting settings");
+            }
 
-  try {
-    const response = await axios.get(
-      'https://openapi.chzzk.naver.com/open/v1/sessions/auth',
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
+            console.log("Settings reset to default successfully");
+
+            // 모든 클라이언트에게 초기화된 설정 전송
+            wss.clients.forEach(client => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify({ type: "settings", settings: JSON.parse(data) }));
+                }
+            });
+
+            res.status(200).send("Settings reset to default successfully");
+        });
+    });
+});
+
+wss.on("connection", (ws) => {
+  //settings.json.이 있으면 settings.json, 없으면 default-settings.json 파일을 읽어 클라이언트에게 전송
+  const settingsPath = path.join(__dirname, "settings.json");
+  const defaultSettingsPath = path.join(__dirname, "default-settings.json");
+  fs.readFile(settingsPath, "utf8", (err, data) => {
+    if (err) {
+      // settings.json 파일이 없으면 default-settings.json 파일을 읽음
+      fs.readFile(defaultSettingsPath, "utf8", (defaultErr, defaultData) => {
+        if (defaultErr) {
+          console.error("Error reading default settings:", defaultErr);
+          ws.send(JSON.stringify({ type: "error", message: "Could not load settings" }));
+        } else {
+          console.log("Sending default settings to client");
+          ws.send(JSON.stringify({ type: "settings", settings: JSON.parse(defaultData) })); // 클라이언트에게 기본 설정 전송
+        }
+      });
+    } else {
+      console.log("Sending settings to client");
+      ws.send(JSON.stringify({ type: "settings", settings: JSON.parse(data) })); // 클라이언트에게 설정 전송
+    }
+  });
+});
+
+//치지직 채널과 연결
+const client = new ChzzkClient();
+const chzzkChat = client.chat({
+    channelId: channelId,
+    pollInterval: 30 * 1000
+});
+
+chzzkChat.on('chat', chat => {
+    //클라이언트 모두에게 메시지 전송
+    wss.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+              type: 'chat',
+              data: chat
+          }));
       }
-    );
-
-    console.log('소켓 세션 생성 성공:', response.data);
-
-    res.json(response.data);
-  } catch (err) {
-    console.error('소켓 세션 생성 실패:', err.response?.data || err.message);
-    res.status(500).json({ error: 'Failed to create socket session' });
-  }
+    });
 });
 
-app.post('/subscribe-chat', async (req, res) => {
-  const { accessToken, sessionKey } = req.body;
-  const chatUrl = 'https://openapi.chzzk.naver.com/open/v1/sessions/events/subscribe/chat';
-
-  console.log('accessToken:', accessToken);
-  console.log('sessionKey:', sessionKey);
-  if (!accessToken || !sessionKey) {
-    return res.status(400).json({ error: 'accessToken and sessionKey are required' });
-  }
-
-  const FormData = require('form-data');
-
-  const formData = new FormData();
-  formData.append('sessionKey', sessionKey);
-  // 채팅 연결
-  try {
-    const chatResponse = await axios.post(
-      chatUrl,
-      formData,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    );
-    console.log('채팅 연결 성공:', chatResponse.data);
-    res.json(chatResponse.data);
-  } catch (err) {
-    console.error('채팅 연결 실패:', err.response?.data || err.message);
-    res.status(500).json({ error: 'Failed to connect to chat' });
-  }
-});
-
-app.post('/subscribe-donation', async (req, res) => {
-  // 후원 연결
-  const { accessToken, sessionKey } = req.body;
-  const donationUrl = 'https://openapi.chzzk.naver.com/open/v1/sessions/events/subscribe/donation';
-
-  console.log('accessToken:', accessToken);
-  console.log('sessionKey:', sessionKey);
-  if (!accessToken || !sessionKey) {
-    return res.status(400).json({ error: 'accessToken and sessionKey are required' });
-  }
-
-  const FormData = require('form-data');
-
-  const formData = new FormData();
-  formData.append('sessionKey', sessionKey);
-  try {
-    const donationResponse = await axios.post(
-      donationUrl,
-      formData,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    );
-    console.log('후원 연결 성공:', donationResponse.data);
-    res.json(donationResponse.data);
-  } catch (err) {
-    console.error('후원 연결 실패:', err.response?.data || err.message);
-    res.status(500).json({ error: 'Failed to connect to donation' });
-  }
-});
+chzzkChat.connect();
