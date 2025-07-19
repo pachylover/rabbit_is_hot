@@ -1,9 +1,11 @@
 {
-  "name": "bichat-backend",
+  "name": "chzzk-chat",
   "version": "1.0.0",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node app.js"
   },
   "keywords": [],
   "author": "",
@@ -11,7 +13,10 @@
   "description": "",
   "dependencies": {
     "axios": "^1.9.0",
+    "chzzk": "^1.10.4",
     "cors": "^2.8.5",
-    "express": "^5.1.0"
+    "dotenv": "^17.2.0",
+    "express": "^5.1.0",
+    "ws": "^8.18.3"
   }
 }

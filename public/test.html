@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dual Rounded Progress Bar (Left Large)</title>
+  <style>
+    .progress-container {
+      width: 250px;
+      height: 30px;
+      background-color: #f3ece9; /* 작은 쪽 색상 (오른쪽) */
+      border-radius: 999px;
+      position: relative;
+      overflow: hidden;
+      font-family: sans-serif;
+    }
+
+    .progress-cover {
+      position: absolute;
+      top: 0;
+      left: 0; /* 왼쪽 영역을 덮음 */
+      height: 100%;
+      width: 63%; /* 왼쪽 큰 퍼센트 */
+      background-color: #fbb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 14px;
+      border-radius: 999px;
+    }
+
+    .progress-text-right {
+      position: absolute;
+      right: 0;
+      height: 100%;
+      width: 37%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #e88;
+      font-weight: bold;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="progress-container">
+    <div class="progress-cover">63%</div>
+    <div class="progress-text-right">37%</div>
+  </div>
+</body>
+</html>
